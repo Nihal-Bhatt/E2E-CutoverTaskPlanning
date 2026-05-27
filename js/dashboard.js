@@ -555,26 +555,6 @@ async function fetchDashboardJson() {
   return res.json();
 }
 
-async function refreshData() {
-  const btn = document.getElementById("btn-refresh");
-  btn.disabled = true;
-  btn.classList.add("loading");
-
-  try {
-    RAW_DATA = await fetchDashboardJson();
-    lastGeneratedAt = RAW_DATA.meta.generatedAt;
-    populateTeamMultiselect();
-    applyTeamFilter();
-    showToast("Dashboard reloaded");
-  } catch (e) {
-    console.error(e);
-    showToast(e.message || "Reload failed", true);
-  } finally {
-    btn.disabled = false;
-    btn.classList.remove("loading");
-  }
-}
-
 async function loadData() {
   RAW_DATA = await fetchDashboardJson();
   lastGeneratedAt = RAW_DATA.meta.generatedAt;
@@ -598,7 +578,6 @@ async function init() {
     document.getElementById("app").hidden = false;
 
     bindTeamMultiselect();
-    document.getElementById("btn-refresh").addEventListener("click", refreshData);
     document.getElementById("detail-close").addEventListener("click", closeDetailPane);
     document.getElementById("detail-backdrop").addEventListener("click", closeDetailPane);
     document.addEventListener("keydown", (e) => {
