@@ -4,7 +4,10 @@ const STATUS_LABELS = {
   completed: "Completed",
 };
 
+let RAW_DATA = null;
 let DATA = null;
+let selectedTeam = "";
+let lastGeneratedAt = null;
 
 function pct(part, total) {
   if (!total) return 0;
@@ -15,6 +18,25 @@ function escapeHtml(s) {
   const d = document.createElement("div");
   d.textContent = s;
   return d.innerHTML;
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+function showToast(message, isError = false) {
+  let el = document.getElementById("toast");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "toast";
+    el.className = "toast";
+    document.body.appendChild(el);
+  }
+  el.textContent = message;
+  el.classList.toggle("error", isError);
+  el.classList.add("show");
+  clearTimeout(showToast._timer);
+  showToast._timer = setTimeout(() => el.classList.remove("show"), 5000);
 }
 
 function showTooltip(text, x, y) {
@@ -29,15 +51,97 @@ function hideTooltip() {
   document.getElementById("tooltip").hidden = true;
 }
 
+function getActiveTasks() {
+  if (!RAW_DATA?.tasks) return [];
+  if (!selectedTeam) return RAW_DATA.tasks;
+  return RAW_DATA.tasks.filter((t) => t.team === selectedTeam);
+}
+
+function aggregateBy(tasks, field) {
+  const map = new Map();
+  tasks.forEach((t) => {
+    const key = t[field] || "—";
+    if (!map.has(key)) {
+      map.set(key, { notStarted: 0, inProgress: 0, completed: 0, delayed: 0 });
+    }
+    const row = map.get(key);
+    if (t.statusKey === "notStarted") row.notStarted++;
+    else if (t.statusKey === "inProgress") row.inProgress++;
+    else if (t.statusKey === "completed") row.completed++;
+    if (t.late) row.delayed++;
+  });
+  const rows = [...map.entries()].map(([name, c]) => ({
+    name,
+    notStarted: c.notStarted,
+    inProgress: c.inProgress,
+    completed: c.completed,
+    total: c.notStarted + c.inProgress + c.completed,
+    delayed: c.delayed,
+  }));
+  rows.sort((a, b) => b.total - a.total);
+  return rows;
+}
+
+function overallFromTasks(tasks) {
+  const ns = tasks.filter((t) => t.statusKey === "notStarted").length;
+  const ip = tasks.filter((t) => t.statusKey === "inProgress").length;
+  const co = tasks.filter((t) => t.statusKey === "completed").length;
+  const late = tasks.filter((t) => t.late).length;
+  return {
+    name: "Overall",
+    notStarted: ns,
+    inProgress: ip,
+    completed: co,
+    total: tasks.length,
+    delayed: late,
+  };
+}
+
+function buildView(raw, tasks) {
+  const total = tasks.length;
+  const completed = tasks.filter((t) => t.statusKey === "completed").length;
+  const delayed = tasks.filter((t) => t.late).length;
+  const pctComplete = total ? Math.round((100 * completed) / total) : 0;
+  const teamLabel = selectedTeam ? ` · ${selectedTeam}` : "";
+
+  return {
+    meta: {
+      ...raw.meta,
+      title: raw.meta.title,
+      subtitle: `${delayed} tasks are delayed, ${pctComplete}% tasks completed${teamLabel}`,
+      totalTasks: total,
+      completedTasks: completed,
+      delayedTasks: delayed,
+      pctComplete,
+      mandGoLive: tasks.filter((t) => t.mandGoLive === "Yes").length,
+      criticalPath: tasks.filter((t) => t.criticalPath === "Yes").length,
+    },
+    tasks,
+    byCategory: [overallFromTasks(tasks), ...aggregateBy(tasks, "category")],
+    byTeam: selectedTeam
+      ? aggregateBy(tasks, "team")
+      : aggregateBy(tasks, "team"),
+    lateTasks: tasks.filter((t) => t.late),
+    summary: {
+      notStarted: tasks.filter((t) => t.statusKey === "notStarted").length,
+      inProgress: tasks.filter((t) => t.statusKey === "inProgress").length,
+      completed,
+    },
+  };
+}
+
+function applyTeamFilter() {
+  const tasks = getActiveTasks();
+  DATA = buildView(RAW_DATA, tasks);
+  renderAll();
+}
+
 function filterTasks(filters) {
-  if (!DATA?.tasks) return [];
-  return DATA.tasks.filter((t) => {
+  return getActiveTasks().filter((t) => {
     if (filters.late && !t.late) return false;
     if (filters.statusKey && t.statusKey !== filters.statusKey) return false;
     if (filters.category && t.category !== filters.category) return false;
     if (filters.team && t.team !== filters.team) return false;
-    if (filters.phase && t.phase !== filters.phase) return false;
-    if (filters.rag && t.rag !== filters.rag) return false;
     if (filters.mand && t.mandGoLive !== "Yes") return false;
     if (filters.critical && t.criticalPath !== "Yes") return false;
     return true;
@@ -45,8 +149,6 @@ function filterTasks(filters) {
 }
 
 function openDetailPane(title, subtitle, tasks) {
-  const pane = document.getElementById("detail-pane");
-  const backdrop = document.getElementById("detail-backdrop");
   document.getElementById("detail-title").textContent = title;
   document.getElementById("detail-subtitle").textContent =
     subtitle || `${tasks.length} task(s)`;
@@ -59,6 +161,7 @@ function openDetailPane(title, subtitle, tasks) {
   } else {
     tasks.forEach((t) => {
       const tr = document.createElement("tr");
+      tr.className = "interactive";
       tr.innerHTML = `
         <td>${escapeHtml(t.id)}</td>
         <td>${escapeHtml(t.name)}</td>
@@ -74,9 +177,9 @@ function openDetailPane(title, subtitle, tasks) {
     });
   }
 
-  pane.classList.add("open");
-  pane.setAttribute("aria-hidden", "false");
-  backdrop.hidden = false;
+  document.getElementById("detail-pane").classList.add("open");
+  document.getElementById("detail-pane").setAttribute("aria-hidden", "false");
+  document.getElementById("detail-backdrop").hidden = false;
   document.body.classList.add("pane-open");
 }
 
@@ -88,10 +191,13 @@ function closeDetailPane() {
 }
 
 function onBarActivate(dimension, rowName, statusKey, label) {
+  if (rowName === "Overall" && !statusKey) {
+    openDetailPane("Overall", `${getActiveTasks().length} tasks`, getActiveTasks());
+    return;
+  }
   const filters = {};
   if (dimension === "category") filters.category = rowName;
   if (dimension === "team") filters.team = rowName;
-  if (dimension === "phase") filters.phase = rowName;
   if (statusKey) filters.statusKey = statusKey;
   const tasks = filterTasks(filters);
   const statusLabel = statusKey ? STATUS_LABELS[statusKey] : "All statuses";
@@ -109,8 +215,6 @@ function renderBarRow(row, dimension, { emphasizeOverall = false } = {}) {
     "bar-row" + (emphasizeOverall && name === "Overall" ? " overall" : "");
   el.tabIndex = 0;
   el.setAttribute("role", "button");
-  el.dataset.dimension = dimension;
-  el.dataset.name = name;
 
   const segments = [
     { key: "notStarted", value: notStarted, className: "not-started" },
@@ -127,7 +231,6 @@ function renderBarRow(row, dimension, { emphasizeOverall = false } = {}) {
     seg.className = `seg ${s.className} interactive`;
     seg.style.width = `${pct(s.value, total)}%`;
     seg.innerHTML = `<span>${s.value}</span>`;
-    seg.title = `${STATUS_LABELS[s.key]}: ${s.value}`;
     seg.addEventListener("mouseenter", (e) =>
       showTooltip(
         `${name} · ${STATUS_LABELS[s.key]}: ${s.value} (click for list)`,
@@ -136,11 +239,7 @@ function renderBarRow(row, dimension, { emphasizeOverall = false } = {}) {
       )
     );
     seg.addEventListener("mousemove", (e) =>
-      showTooltip(
-        `${name} · ${STATUS_LABELS[s.key]}: ${s.value}`,
-        e.clientX,
-        e.clientY
-      )
+      showTooltip(`${name} · ${STATUS_LABELS[s.key]}: ${s.value}`, e.clientX, e.clientY)
     );
     seg.addEventListener("mouseleave", hideTooltip);
     seg.addEventListener("click", (e) => {
@@ -151,7 +250,8 @@ function renderBarRow(row, dimension, { emphasizeOverall = false } = {}) {
   });
 
   if (!track.children.length) {
-    track.innerHTML = '<div class="seg not-started" style="width:100%"><span>0</span></div>';
+    track.innerHTML =
+      '<div class="seg not-started" style="width:100%"><span>0</span></div>';
   }
 
   const label = document.createElement("span");
@@ -164,24 +264,22 @@ function renderBarRow(row, dimension, { emphasizeOverall = false } = {}) {
   totalEl.textContent = total;
 
   const badge = document.createElement("span");
-  badge.className = "delayed-badge" + (delayed > 0 ? " visible interactive" : "");
+  badge.className =
+    "delayed-badge" + (delayed > 0 ? " visible interactive" : "");
   if (delayed > 0) {
     badge.textContent = delayed;
-    badge.title = `${delayed} delayed — click`;
     badge.addEventListener("click", (e) => {
       e.stopPropagation();
       const filters = { late: true };
       if (dimension === "category") filters.category = name;
       if (dimension === "team") filters.team = name;
-      if (dimension === "phase") filters.phase = name;
-      openDetailPane(`Delayed · ${name}`, `${delayed} delayed task(s)`, filterTasks(filters));
+      openDetailPane(`Delayed · ${name}`, `${delayed} delayed`, filterTasks(filters));
     });
   }
 
   el.append(label, track, totalEl, badge);
-
   el.addEventListener("mouseenter", (e) =>
-    showTooltip(`${name}: ${total} tasks (click row for all)`, e.clientX, e.clientY)
+    showTooltip(`${name}: ${total} tasks`, e.clientX, e.clientY)
   );
   el.addEventListener("mouseleave", hideTooltip);
   el.addEventListener("click", () => onBarActivate(dimension, name, null, name));
@@ -207,42 +305,12 @@ function renderChart(containerId, rows, dimension, emphasizeOverall) {
   root.appendChild(chart);
 }
 
-function renderRagList(items) {
-  const root = document.getElementById("chart-rag");
-  root.innerHTML = "";
-  const max = Math.max(...items.map((i) => i.total), 1);
-  items.forEach((item) => {
-    const row = document.createElement("button");
-    row.type = "button";
-    row.className = "rag-row interactive";
-    const w = pct(item.total, max);
-    row.innerHTML = `
-      <span class="rag-label">${escapeHtml(item.name)}</span>
-      <span class="rag-bar-wrap"><span class="rag-bar" style="width:${w}%"></span></span>
-      <span class="rag-count">${item.total}${item.delayed ? ` · <em>${item.delayed} late</em>` : ""}</span>
-    `;
-    row.addEventListener("click", () => {
-      openDetailPane(
-        `RAG: ${item.name}`,
-        `${item.total} tasks`,
-        filterTasks({ rag: item.name })
-      );
-    });
-    row.addEventListener("mouseenter", (e) =>
-      showTooltip(`${item.name}: ${item.total} tasks`, e.clientX, e.clientY)
-    );
-    row.addEventListener("mouseleave", hideTooltip);
-    root.appendChild(row);
-  });
-}
-
 function renderStatusDonut(summary) {
   const total =
     summary.notStarted + summary.inProgress + summary.completed || 1;
   const donut = document.getElementById("status-donut");
   const p1 = pct(summary.notStarted, total);
   const p2 = pct(summary.inProgress, total);
-  const p3 = pct(summary.completed, total);
   donut.style.background = `conic-gradient(
     var(--not-started) 0% ${p1}%,
     var(--in-progress) ${p1}% ${p1 + p2}%,
@@ -252,19 +320,13 @@ function renderStatusDonut(summary) {
   const list = document.getElementById("status-legend-list");
   list.innerHTML = "";
   [
-    ["Not Started", summary.notStarted, "not-started"],
-    ["In Progress", summary.inProgress, "in-progress"],
-    ["Completed", summary.completed, "completed"],
-  ].forEach(([label, count, cls]) => {
+    ["Not Started", summary.notStarted, "not-started", "notStarted"],
+    ["In Progress", summary.inProgress, "in-progress", "inProgress"],
+    ["Completed", summary.completed, "completed", "completed"],
+  ].forEach(([label, count, cls, key]) => {
     const li = document.createElement("li");
     li.className = "interactive";
     li.innerHTML = `<span class="legend-swatch ${cls}"></span> ${label}: <strong>${count}</strong>`;
-    const key =
-      label === "Not Started"
-        ? "notStarted"
-        : label === "In Progress"
-          ? "inProgress"
-          : "completed";
     li.addEventListener("click", () =>
       openDetailPane(label, `${count} tasks`, filterTasks({ statusKey: key }))
     );
@@ -312,12 +374,38 @@ function applyMeta(meta) {
   document.getElementById("kpi-critical").textContent = meta.criticalPath ?? "—";
 
   const link = document.getElementById("sharepoint-link");
-  if (meta.sharepointUrl) {
-    link.href = meta.sharepointUrl;
-  }
+  if (meta.sharepointUrl) link.href = meta.sharepointUrl;
 
   document.getElementById("footer-source").textContent =
     `Source: ${meta.source} · Updated ${meta.generatedAt}`;
+}
+
+function populateTeamFilter() {
+  const select = document.getElementById("team-filter");
+  const teams = [...new Set(RAW_DATA.tasks.map((t) => t.team).filter(Boolean))].sort();
+  select.innerHTML = '<option value="">All teams</option>';
+  teams.forEach((team) => {
+    const opt = document.createElement("option");
+    opt.value = team;
+    opt.textContent = team;
+    select.appendChild(opt);
+  });
+  select.value = selectedTeam;
+}
+
+function renderAll() {
+  if (!DATA) return;
+  applyMeta(DATA.meta);
+  renderStatusDonut(DATA.summary);
+  renderChart("chart-category", DATA.byCategory, "category", true);
+  const teamPanel = document.getElementById("panel-team");
+  if (selectedTeam) {
+    teamPanel.hidden = true;
+  } else {
+    teamPanel.hidden = false;
+    renderChart("chart-team", DATA.byTeam, "team", false);
+  }
+  renderLateTable(DATA.lateTasks || []);
 }
 
 function bindKpiButtons() {
@@ -325,7 +413,7 @@ function bindKpiButtons() {
     btn.addEventListener("click", () => {
       const f = btn.dataset.filter;
       if (f === "all") {
-        openDetailPane("All tasks", `${DATA.tasks.length} tasks`, DATA.tasks);
+        openDetailPane("All tasks", "", getActiveTasks());
       } else if (f === "late") {
         openDetailPane("Delayed tasks", "", DATA.lateTasks);
       } else if (f === "mand") {
@@ -333,35 +421,137 @@ function bindKpiButtons() {
       } else if (f === "critical") {
         openDetailPane("Critical path", "", filterTasks({ critical: true }));
       } else if (f.startsWith("status:")) {
-        const key = f.split(":")[1];
         openDetailPane(
-          STATUS_LABELS[key],
+          STATUS_LABELS[f.split(":")[1]],
           "",
-          filterTasks({ statusKey: key })
+          filterTasks({ statusKey: f.split(":")[1] })
         );
       }
     });
   });
 }
 
+async function fetchDashboardJson() {
+  const res = await fetch(`data/dashboard.json?t=${Date.now()}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+async function triggerSharePointWorkflow() {
+  const cfg = window.DASHBOARD_CONFIG || {};
+  const repo = RAW_DATA?.meta?.githubRepo || cfg.githubRepo;
+  const workflow = RAW_DATA?.meta?.workflowFile || cfg.workflowFile;
+  const branch = cfg.defaultBranch || "main";
+  const pat = sessionStorage.getItem("gh_workflow_token");
+
+  if (!pat) {
+    window.open(
+      `https://github.com/${repo}/actions/workflows/${workflow}`,
+      "_blank",
+      "noopener"
+    );
+    return false;
+  }
+
+  const res = await fetch(
+    `https://api.github.com/repos/${repo}/actions/workflows/${workflow}/dispatches`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${pat}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ref: branch }),
+    }
+  );
+  if (!res.ok) {
+    throw new Error("Could not start GitHub sync (check workflow token)");
+  }
+  return true;
+}
+
+async function pollForUpdatedData(maxWaitMs = 180000) {
+  const start = Date.now();
+  while (Date.now() - start < maxWaitMs) {
+    await sleep(12000);
+    try {
+      const data = await fetchDashboardJson();
+      if (data.meta?.generatedAt && data.meta.generatedAt !== lastGeneratedAt) {
+        return data;
+      }
+    } catch {
+      /* retry */
+    }
+  }
+  return null;
+}
+
+async function refreshFromSharePoint() {
+  const btn = document.getElementById("btn-refresh");
+  btn.disabled = true;
+  btn.classList.add("loading");
+
+  try {
+    RAW_DATA = await fetchDashboardJson();
+    lastGeneratedAt = RAW_DATA.meta.generatedAt;
+    populateTeamFilter();
+    applyTeamFilter();
+    showToast("Loaded latest published data…");
+
+    const dispatched = await triggerSharePointWorkflow();
+
+    if (dispatched) {
+      showToast("SharePoint sync started — waiting for GitHub Actions (up to 3 min)");
+      const updated = await pollForUpdatedData();
+      if (updated) {
+        RAW_DATA = updated;
+        lastGeneratedAt = updated.meta.generatedAt;
+        populateTeamFilter();
+        applyTeamFilter();
+        showToast("SharePoint sync complete — dashboard updated");
+      } else {
+        showToast("Sync still running — click Refresh again in a minute");
+      }
+    } else {
+      showToast(
+        "To auto-pull SharePoint: run the GitHub Action, then click Refresh again. One-click: see README (gh_workflow_token)."
+      );
+    }
+  } catch (e) {
+    console.error(e);
+    showToast(e.message || "Refresh failed", true);
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove("loading");
+  }
+}
+
+async function loadData() {
+  RAW_DATA = await fetchDashboardJson();
+  lastGeneratedAt = RAW_DATA.meta.generatedAt;
+  populateTeamFilter();
+  applyTeamFilter();
+  bindKpiButtons();
+}
+
 async function init() {
   const loading = document.getElementById("loading");
   try {
-    const res = await fetch("data/dashboard.json", { cache: "no-store" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    DATA = await res.json();
+    await loadData();
     loading.style.display = "none";
     document.getElementById("app").hidden = false;
 
-    applyMeta(DATA.meta);
-    renderStatusDonut(DATA.summary);
-    renderChart("chart-category", DATA.byCategory, "category", true);
-    renderChart("chart-team", DATA.byTeam, "team", false);
-    renderChart("chart-phase", DATA.byPhase, "phase", false);
-    renderRagList(DATA.byRag || []);
-    renderLateTable(DATA.lateTasks || []);
-    bindKpiButtons();
+    document.getElementById("team-filter").addEventListener("change", (e) => {
+      selectedTeam = e.target.value;
+      closeDetailPane();
+      applyTeamFilter();
+    });
 
+    document.getElementById("btn-refresh").addEventListener("click", refreshFromSharePoint);
     document.getElementById("detail-close").addEventListener("click", closeDetailPane);
     document.getElementById("detail-backdrop").addEventListener("click", closeDetailPane);
     document.addEventListener("keydown", (e) => {
