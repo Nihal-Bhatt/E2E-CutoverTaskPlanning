@@ -33,10 +33,20 @@ python3 -m http.server 8080
 
 ## GitHub Pages
 
-1. Push this repo to GitHub.
-2. **Settings → Pages → Build and deployment → GitHub Actions**.
-3. On push to `main`, the workflow deploys the site.
-4. Optional: set repo variable `CUTOVER_XLSX` in Actions if you add the workbook to the runner (usually commit `data/dashboard.json` instead).
+### One-time setup (fixes deploy 404)
+
+1. Push code to `main` and wait for the **Build and deploy dashboard** workflow to finish (green).
+2. Open [Pages settings](https://github.com/Nihal-Bhatt/E2E-CutoverTaskPlanning/settings/pages).
+3. Under **Build and deployment** → **Source**, choose **Deploy from a branch**.
+4. **Branch:** `gh-pages` → folder **`/ (root)`** → **Save**.
+5. Open the site (after 1–2 minutes):  
+   **https://nihal-bhatt.github.io/E2E-CutoverTaskPlanning/**
+
+If deploy failed before: re-run the workflow from the **Actions** tab after step 4.
+
+### Updates
+
+On each push to `main`, Actions rebuilds and updates `gh-pages`.
 
 Refresh data before push:
 

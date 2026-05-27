@@ -1,24 +1,18 @@
+# Deploy static dashboard to GitHub Pages (gh-pages branch).
+# After first successful run: Settings → Pages → Deploy from branch → gh-pages → / (root)
+
 name: Build and deploy dashboard
 
 on:
   push:
     branches: [main, master]
   workflow_dispatch:
-  schedule:
-  # Every 4 hours (UTC) — adjust as needed
-    - cron: "0 */4 * * *"
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: true
+  contents: write
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,28 +25,22 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Build dashboard data
-        env:
-          CUTOVER_XLSX: ${{ vars.CUTOVER_XLSX || '' }}
         run: |
-          if [ -n "$CUTOVER_XLSX" ] && [ -f "$CUTOVER_XLSX" ]; then
-            python scripts/build_dashboard.py
-          elif [ -f data/dashboard.json ]; then
-            echo "Using committed dashboard.json (set repo variable CUTOVER_XLSX for live Excel)"
+          if [ -f data/dashboard.json ]; then
+            echo "Using committed data/dashboard.json"
           else
-            echo "No Excel path and no dashboard.json" && exit 1
+            python scripts/build_dashboard.py
           fi
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: .
+      - name: Assemble site
+        run: |
+          mkdir -p site
+          cp index.html site/
+          cp -r css js assets data site/
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
+          publish_branch: gh-pages
