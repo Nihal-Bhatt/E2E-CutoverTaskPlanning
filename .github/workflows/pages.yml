@@ -1,0 +1,58 @@
+name: Build and deploy dashboard
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+  schedule:
+  # Every 4 hours (UTC) — adjust as needed
+    - cron: "0 */4 * * *"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build dashboard data
+        env:
+          CUTOVER_XLSX: ${{ vars.CUTOVER_XLSX || '' }}
+        run: |
+          if [ -n "$CUTOVER_XLSX" ] && [ -f "$CUTOVER_XLSX" ]; then
+            python scripts/build_dashboard.py
+          elif [ -f data/dashboard.json ]; then
+            echo "Using committed dashboard.json (set repo variable CUTOVER_XLSX for live Excel)"
+          else
+            echo "No Excel path and no dashboard.json" && exit 1
+          fi
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

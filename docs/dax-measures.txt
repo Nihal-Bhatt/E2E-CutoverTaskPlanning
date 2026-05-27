@@ -1,0 +1,94 @@
+// ============================================================
+// Cutover Run Sheet — DAX measures (Power BI)
+// Table name: adjust 'Cutover Tasks' if your query name differs
+// ============================================================
+
+// --- Core counts ---
+Total Tasks =
+COUNTROWS ( 'Cutover Tasks' )
+
+Completed Tasks =
+CALCULATE (
+    [Total Tasks],
+    'Cutover Tasks'[Status] = "Complete"
+        || 'Cutover Tasks'[Status Display] = "Completed"
+)
+
+In Progress Tasks =
+CALCULATE ( [Total Tasks], 'Cutover Tasks'[Status] = "In Progress" )
+
+Not Started Tasks =
+CALCULATE ( [Total Tasks], 'Cutover Tasks'[Status] = "Not Started" )
+
+Pct Complete =
+DIVIDE ( [Completed Tasks], [Total Tasks], 0 )
+
+Delayed Tasks =
+CALCULATE ( [Total Tasks], 'Cutover Tasks'[Is Late] = TRUE () )
+// Or: 'Cutover Tasks'[Late] = "Y"
+
+// --- Dynamic title (reference slide) ---
+Dashboard Title =
+VAR Delayed = [Delayed Tasks]
+VAR Pct = FORMAT ( [Pct Complete], "0%" )
+RETURN
+    "Cutover Plan | "
+        & Delayed
+        & " tasks are delayed; "
+        & Pct
+        & " tasks completed"
+
+// --- Subtitle: status as of (Singapore) ---
+Status As Of =
+"Status as of "
+    & FORMAT (
+        UTCTONOW () + TIME ( 8, 0, 0 ),
+        "h:mmam/pm"
+    )
+    & " SGT"
+
+// --- For stacked bars (use as Values) ---
+Tasks Not Started =
+CALCULATE ( [Total Tasks], 'Cutover Tasks'[Status] = "Not Started" )
+
+Tasks In Progress =
+CALCULATE ( [Total Tasks], 'Cutover Tasks'[Status] = "In Progress" )
+
+Tasks Completed =
+CALCULATE (
+    [Total Tasks],
+    'Cutover Tasks'[Status] = "Complete"
+)
+
+// --- Per-row delayed badge (use in matrix next to category/team chart) ---
+Delayed Tasks (by context) =
+CALCULATE ( [Delayed Tasks], REMOVEFILTERS ( 'Cutover Tasks'[Status] ) )
+
+// --- Optional: critical / mand ---
+Critical Path Tasks =
+CALCULATE ( [Total Tasks], 'Cutover Tasks'[Critical Path] = "Yes" )
+
+Mand for GoLive Tasks =
+CALCULATE ( [Total Tasks], 'Cutover Tasks'[Mand for GoLive] = "Yes" )
+
+// ============================================================
+// Status sort order (required for stacked bar legend)
+// ============================================================
+// 1. Modeling → New column on Cutover Tasks:
+Status Sort Order =
+SWITCH (
+    'Cutover Tasks'[Status Display],
+    "Not Started", 1,
+    "In Progress", 2,
+    "Completed", 3,
+    99
+)
+// 2. Select Status Display column → Column tools → Sort by column → Status Sort Order
+
+// ============================================================
+// Theme colors (approximate match to reference slide)
+// ============================================================
+// Not Started:  #C7B8F5
+// In Progress:  #7459B9
+// Completed:    #31274F
+// Set under View → Themes → Customize current theme → Data colors

@@ -1,0 +1,343 @@
+{
+  "meta": {
+    "generatedAt": "2026-05-27T12:37:41.978070+08:00",
+    "statusAsOf": "12:37pm SGT",
+    "source": "Cutover RunSheet_GTS (1).xlsx",
+    "totalTasks": 206,
+    "completedTasks": 65,
+    "delayedTasks": 8,
+    "pctComplete": 32,
+    "title": "Cutover Plan | 8 tasks are delayed; 32% tasks completed"
+  },
+  "byCategory": [
+    {
+      "name": "Overall",
+      "notStarted": 98,
+      "inProgress": 43,
+      "completed": 65,
+      "total": 206,
+      "delayed": 8
+    },
+    {
+      "name": "Configuration Set Up (o9)",
+      "notStarted": 22,
+      "inProgress": 3,
+      "completed": 0,
+      "total": 25,
+      "delayed": 6
+    },
+    {
+      "name": "Deployment (BR1 Changes)",
+      "notStarted": 0,
+      "inProgress": 0,
+      "completed": 25,
+      "total": 25,
+      "delayed": 0
+    },
+    {
+      "name": "Quality & Governance",
+      "notStarted": 0,
+      "inProgress": 11,
+      "completed": 13,
+      "total": 24,
+      "delayed": 0
+    },
+    {
+      "name": "Platform Validation",
+      "notStarted": 22,
+      "inProgress": 0,
+      "completed": 0,
+      "total": 22,
+      "delayed": 1
+    },
+    {
+      "name": "Environment Set Up (GTS)",
+      "notStarted": 6,
+      "inProgress": 3,
+      "completed": 12,
+      "total": 21,
+      "delayed": 0
+    },
+    {
+      "name": "Configuration Set Up (GTS)",
+      "notStarted": 7,
+      "inProgress": 7,
+      "completed": 5,
+      "total": 19,
+      "delayed": 1
+    },
+    {
+      "name": "Production One-time Data Loads",
+      "notStarted": 5,
+      "inProgress": 6,
+      "completed": 1,
+      "total": 12,
+      "delayed": 0
+    },
+    {
+      "name": "Production Full Data Load",
+      "notStarted": 11,
+      "inProgress": 0,
+      "completed": 0,
+      "total": 11,
+      "delayed": 0
+    },
+    {
+      "name": "User Set Up",
+      "notStarted": 6,
+      "inProgress": 2,
+      "completed": 2,
+      "total": 10,
+      "delayed": 0
+    },
+    {
+      "name": "Go Live",
+      "notStarted": 8,
+      "inProgress": 0,
+      "completed": 0,
+      "total": 8,
+      "delayed": 0
+    },
+    {
+      "name": "Data Readiness",
+      "notStarted": 2,
+      "inProgress": 4,
+      "completed": 0,
+      "total": 6,
+      "delayed": 0
+    },
+    {
+      "name": "Environment Set Up (o9)",
+      "notStarted": 0,
+      "inProgress": 0,
+      "completed": 6,
+      "total": 6,
+      "delayed": 0
+    },
+    {
+      "name": "Support / Sustainability",
+      "notStarted": 1,
+      "inProgress": 4,
+      "completed": 0,
+      "total": 5,
+      "delayed": 0
+    },
+    {
+      "name": "SSM +SC Operational Readiness",
+      "notStarted": 4,
+      "inProgress": 1,
+      "completed": 0,
+      "total": 5,
+      "delayed": 0
+    },
+    {
+      "name": "Operational Readiness",
+      "notStarted": 2,
+      "inProgress": 0,
+      "completed": 1,
+      "total": 3,
+      "delayed": 0
+    },
+    {
+      "name": "Integration Set Up",
+      "notStarted": 0,
+      "inProgress": 2,
+      "completed": 0,
+      "total": 2,
+      "delayed": 0
+    },
+    {
+      "name": "Analytics",
+      "notStarted": 2,
+      "inProgress": 0,
+      "completed": 0,
+      "total": 2,
+      "delayed": 0
+    }
+  ],
+  "byTeam": [
+    {
+      "name": "GTS",
+      "notStarted": 35,
+      "inProgress": 24,
+      "completed": 30,
+      "total": 89,
+      "delayed": 2
+    },
+    {
+      "name": "o9",
+      "notStarted": 39,
+      "inProgress": 3,
+      "completed": 12,
+      "total": 54,
+      "delayed": 6
+    },
+    {
+      "name": "GDP",
+      "notStarted": 7,
+      "inProgress": 0,
+      "completed": 9,
+      "total": 16,
+      "delayed": 0
+    },
+    {
+      "name": "SC",
+      "notStarted": 2,
+      "inProgress": 9,
+      "completed": 1,
+      "total": 12,
+      "delayed": 0
+    },
+    {
+      "name": "Analytics",
+      "notStarted": 6,
+      "inProgress": 1,
+      "completed": 0,
+      "total": 7,
+      "delayed": 0
+    },
+    {
+      "name": "McK",
+      "notStarted": 5,
+      "inProgress": 1,
+      "completed": 0,
+      "total": 6,
+      "delayed": 0
+    },
+    {
+      "name": "SC/GTS",
+      "notStarted": 0,
+      "inProgress": 0,
+      "completed": 5,
+      "total": 5,
+      "delayed": 0
+    },
+    {
+      "name": "Data",
+      "notStarted": 1,
+      "inProgress": 3,
+      "completed": 0,
+      "total": 4,
+      "delayed": 0
+    },
+    {
+      "name": "Oracle COE",
+      "notStarted": 0,
+      "inProgress": 0,
+      "completed": 4,
+      "total": 4,
+      "delayed": 0
+    },
+    {
+      "name": "GTS/o9",
+      "notStarted": 0,
+      "inProgress": 1,
+      "completed": 2,
+      "total": 3,
+      "delayed": 0
+    },
+    {
+      "name": "TBC",
+      "notStarted": 2,
+      "inProgress": 0,
+      "completed": 1,
+      "total": 3,
+      "delayed": 0
+    },
+    {
+      "name": "QA/RA",
+      "notStarted": 0,
+      "inProgress": 0,
+      "completed": 1,
+      "total": 1,
+      "delayed": 0
+    },
+    {
+      "name": "GDP/GTS",
+      "notStarted": 0,
+      "inProgress": 1,
+      "completed": 0,
+      "total": 1,
+      "delayed": 0
+    }
+  ],
+  "lateTasks": [
+    {
+      "Task Id": "T-05-01",
+      "Task Name": "Integration Setup (7Days Tentative)",
+      "Category": "Configuration Set Up (o9)",
+      "Team": "o9",
+      "Status": "In Progress",
+      "Assignee": "Arun Nair",
+      "Planned End Date": "2026-05-19"
+    },
+    {
+      "Task Id": "T-05-04",
+      "Task Name": "Final Config Reset for Cutover",
+      "Category": "Configuration Set Up (o9)",
+      "Team": "o9",
+      "Status": "Not Started",
+      "Assignee": "Arun Nair",
+      "Planned End Date": "2026-05-22"
+    },
+    {
+      "Task Id": "T-05-05",
+      "Task Name": "Final Integration Changes",
+      "Category": "Configuration Set Up (o9)",
+      "Team": "o9",
+      "Status": "Not Started",
+      "Assignee": "Arun Nair",
+      "Planned End Date": "2026-05-22"
+    },
+    {
+      "Task Id": "T-05-06",
+      "Task Name": "Onetime Data Files From Resmed",
+      "Category": "Configuration Set Up (o9)",
+      "Team": "o9",
+      "Status": "Not Started",
+      "Assignee": "Arun Nair",
+      "Planned End Date": "2026-05-22"
+    },
+    {
+      "Task Id": "T-05-07",
+      "Task Name": "Dry Run Data Load",
+      "Category": "Configuration Set Up (o9)",
+      "Team": "o9",
+      "Status": "Not Started",
+      "Assignee": "Arun Nair",
+      "Planned End Date": "2026-05-25"
+    },
+    {
+      "Task Id": "T-05-15",
+      "Task Name": "Final Integration Changes",
+      "Category": "Configuration Set Up (o9)",
+      "Team": "o9",
+      "Status": "Not Started",
+      "Assignee": "Arun Nair",
+      "Planned End Date": "2026-05-22"
+    },
+    {
+      "Task Id": "T-07-01",
+      "Task Name": "Configure Boomi Prod Environment for E2E Planning Tech GoLive  (PROD - EU)",
+      "Category": "Configuration Set Up (GTS)",
+      "Team": "GTS",
+      "Status": "Not Started",
+      "Assignee": "Jed Chuan Wong",
+      "Planned End Date": "2026-04-29"
+    },
+    {
+      "Task Id": "T-13-09",
+      "Task Name": "Validate Integrations",
+      "Category": "Platform Validation",
+      "Team": "GTS",
+      "Status": "Not Started",
+      "Assignee": "",
+      "Planned End Date": "2026-05-25"
+    }
+  ],
+  "summary": {
+    "notStarted": 98,
+    "inProgress": 43,
+    "completed": 65
+  }
+}
