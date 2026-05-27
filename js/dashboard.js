@@ -547,94 +547,28 @@ function bindKpiButtons() {
   });
 }
 
-async function fetchDashboardJson() {
-  const res = await fetch(`data/dashboard.json?t=${Date.now()}`, {
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-
-async function triggerSharePointWorkflow() {
-  const cfg = window.DASHBOARD_CONFIG || {};
-  const repo = RAW_DATA?.meta?.githubRepo || cfg.githubRepo;
-  const workflow = RAW_DATA?.meta?.workflowFile || cfg.workflowFile;
-  const branch = cfg.defaultBranch || "main";
-  const pat = sessionStorage.getItem("gh_workflow_token");
-
-  if (!pat) {
-    window.open(
-      `https://github.com/${repo}/actions/workflows/${workflow}`,
-      "_blank",
-      "noopener"
-    );
-    return false;
-  }
-
-  const res = await fetch(
-    `https://api.github.com/repos/${repo}/actions/workflows/${workflow}/dispatches`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${pat}`,
-        Accept: "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ ref: branch }),
-    }
-  );
-  if (!res.ok) {
-    throw new Error("Could not start GitHub sync (check workflow token)");
-  }
-  return true;
-}
-
-async function pollForUpdatedData(maxWaitMs = 180000) {
-  const start = Date.now();
-  while (Date.now() - start < maxWaitMs) {
-    await sleep(12000);
-    try {
-      const data = await fetchDashboardJson();
-      if (data.meta?.generatedAt && data.meta.generatedAt !== lastGeneratedAt) {
-        return data;
-      }
-    } catch {
-      /* retry */
-    }
-  }
-  return null;
-}
-
 async function refreshFromSharePoint() {
   const btn = document.getElementById("btn-refresh");
   btn.disabled = true;
   btn.classList.add("loading");
 
   try {
-    RAW_DATA = await fetchDashboardJson();
+    if (hasLiveRefresh()) {
+      showToast("Fetching latest data from SharePoint…");
+    } else {
+      showToast("Reloading published data…");
+    }
+
+    RAW_DATA = await refreshDashboardData();
     lastGeneratedAt = RAW_DATA.meta.generatedAt;
     populateTeamMultiselect();
     applyTeamFilter();
-    showToast("Loaded latest published data…");
 
-    const dispatched = await triggerSharePointWorkflow();
-
-    if (dispatched) {
-      showToast("SharePoint sync started — waiting for GitHub Actions (up to 3 min)");
-      const updated = await pollForUpdatedData();
-      if (updated) {
-        RAW_DATA = updated;
-        lastGeneratedAt = updated.meta.generatedAt;
-        populateTeamMultiselect();
-        applyTeamFilter();
-        showToast("SharePoint sync complete — dashboard updated");
-      } else {
-        showToast("Sync still running — click Refresh again in a minute");
-      }
+    if (hasLiveRefresh()) {
+      showToast("Dashboard updated from SharePoint");
     } else {
       showToast(
-        "To auto-pull SharePoint: run the GitHub Action, then click Refresh again. One-click: see README (gh_workflow_token)."
+        "Loaded cached data. For live SharePoint refresh, deploy API on Vercel (see docs/SHAREPOINT_BACKEND.md)"
       );
     }
   } catch (e) {
@@ -647,7 +581,7 @@ async function refreshFromSharePoint() {
 }
 
 async function loadData() {
-  RAW_DATA = await fetchDashboardJson();
+  RAW_DATA = await loadDashboardData();
   lastGeneratedAt = RAW_DATA.meta.generatedAt;
   populateTeamMultiselect();
   applyTeamFilter();
