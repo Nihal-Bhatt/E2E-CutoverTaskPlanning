@@ -63,7 +63,12 @@ def task_records(df: pd.DataFrame) -> list[dict]:
                 "id": str(r.get("Task Id", "") or ""),
                 "name": str(r.get("Task Name", "") or ""),
                 "category": str(r.get("Category", "") or ""),
-                "team": str(r.get("Team", "") or ""),
+                "team": (
+                    str(r.get("Team", "") or "").strip()
+                    if pd.notna(r.get("Team"))
+                    and str(r.get("Team", "")).strip().lower() != "nan"
+                    else ""
+                ),
                 "status": str(r.get("Status", "") or ""),
                 "statusKey": str(r.get("status_key", "") or ""),
                 "late": bool(r.get("is_late")),

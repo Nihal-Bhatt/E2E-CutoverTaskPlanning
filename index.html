@@ -32,16 +32,6 @@
           />
         </header>
 
-        <div class="toolbar">
-          <button type="button" id="btn-refresh" class="btn-refresh">
-            ↻ Refresh from SharePoint
-          </button>
-          <label class="team-filter-label" for="team-filter">Team</label>
-          <select id="team-filter" class="team-filter" aria-label="Filter by team">
-            <option value="">All teams</option>
-          </select>
-        </div>
-
         <div class="legend-bar" aria-label="Chart legend">
           <span class="legend-item"
             ><span class="legend-swatch not-started"></span> Not Started</span
@@ -85,6 +75,46 @@
           </button>
         </section>
 
+        <div class="toolbar toolbar-right">
+          <div class="team-multiselect" id="team-multiselect">
+            <span class="team-filter-label">Teams</span>
+            <button
+              type="button"
+              class="team-multiselect-trigger"
+              id="team-trigger"
+              aria-haspopup="listbox"
+              aria-expanded="false"
+            >
+              <span id="team-trigger-label">All teams</span>
+              <span class="chevron" aria-hidden="true">▾</span>
+            </button>
+            <div class="team-multiselect-panel" id="team-panel" hidden role="listbox"></div>
+          </div>
+          <button
+            type="button"
+            id="btn-refresh"
+            class="btn-refresh-icon"
+            aria-label="Refresh data from SharePoint"
+            title="Refresh from SharePoint"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M21 12a9 9 0 1 1-2.64-6.36"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+              <path
+                d="M21 3v6h-6"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+
         <section class="status-overview panel">
           <h2>Status overview</h2>
           <div class="status-donut-wrap">
@@ -104,8 +134,8 @@
           </article>
         </section>
 
-        <section class="late-section">
-          <h2>Delayed tasks</h2>
+        <section class="late-section" id="late-section">
+          <h2>Delayed tasks <span class="late-count" id="late-count"></span></h2>
           <div class="late-table-wrap">
             <table class="late-table" id="late-table">
               <thead>

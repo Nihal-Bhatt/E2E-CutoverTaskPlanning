@@ -6,8 +6,17 @@ const STATUS_LABELS = {
 
 let RAW_DATA = null;
 let DATA = null;
-let selectedTeam = "";
+let selectedTeams = [];
 let lastGeneratedAt = null;
+
+function hasTaskDetails() {
+  return Array.isArray(RAW_DATA?.tasks) && RAW_DATA.tasks.length > 0;
+}
+
+function normalizeTeam(name) {
+  if (!name || name === "nan" || name === "NaN") return null;
+  return String(name);
+}
 
 function pct(part, total) {
   if (!total) return 0;
@@ -51,10 +60,27 @@ function hideTooltip() {
   document.getElementById("tooltip").hidden = true;
 }
 
+function getTeamsList() {
+  if (hasTaskDetails()) {
+    return [
+      ...new Set(
+        RAW_DATA.tasks.map((t) => normalizeTeam(t.team)).filter(Boolean)
+      ),
+    ].sort();
+  }
+  if (RAW_DATA?.byTeam?.length) {
+    return RAW_DATA.byTeam
+      .map((r) => r.name)
+      .filter((n) => n && n !== "Overall")
+      .sort();
+  }
+  return [];
+}
+
 function getActiveTasks() {
-  if (!RAW_DATA?.tasks) return [];
-  if (!selectedTeam) return RAW_DATA.tasks;
-  return RAW_DATA.tasks.filter((t) => t.team === selectedTeam);
+  if (!hasTaskDetails()) return [];
+  if (!selectedTeams.length) return RAW_DATA.tasks;
+  return RAW_DATA.tasks.filter((t) => selectedTeams.includes(t.team));
 }
 
 function aggregateBy(tasks, field) {
@@ -102,7 +128,9 @@ function buildView(raw, tasks) {
   const completed = tasks.filter((t) => t.statusKey === "completed").length;
   const delayed = tasks.filter((t) => t.late).length;
   const pctComplete = total ? Math.round((100 * completed) / total) : 0;
-  const teamLabel = selectedTeam ? ` · ${selectedTeam}` : "";
+  const teamLabel = selectedTeams.length
+    ? ` · ${selectedTeams.join(", ")}`
+    : "";
 
   return {
     meta: {
@@ -118,9 +146,7 @@ function buildView(raw, tasks) {
     },
     tasks,
     byCategory: [overallFromTasks(tasks), ...aggregateBy(tasks, "category")],
-    byTeam: selectedTeam
-      ? aggregateBy(tasks, "team")
-      : aggregateBy(tasks, "team"),
+    byTeam: aggregateBy(tasks, "team"),
     lateTasks: tasks.filter((t) => t.late),
     summary: {
       notStarted: tasks.filter((t) => t.statusKey === "notStarted").length,
@@ -131,13 +157,21 @@ function buildView(raw, tasks) {
 }
 
 function applyTeamFilter() {
-  const tasks = getActiveTasks();
-  DATA = buildView(RAW_DATA, tasks);
+  if (!hasTaskDetails()) {
+    DATA = {
+      ...RAW_DATA,
+      lateTasks: RAW_DATA.lateTasks || [],
+    };
+    renderAll();
+    return;
+  }
+  DATA = buildView(RAW_DATA, getActiveTasks());
   renderAll();
 }
 
 function filterTasks(filters) {
-  return getActiveTasks().filter((t) => {
+  const base = hasTaskDetails() ? getActiveTasks() : RAW_DATA?.lateTasks || [];
+  return base.filter((t) => {
     if (filters.late && !t.late) return false;
     if (filters.statusKey && t.statusKey !== filters.statusKey) return false;
     if (filters.category && t.category !== filters.category) return false;
@@ -380,17 +414,92 @@ function applyMeta(meta) {
     `Source: ${meta.source} · Updated ${meta.generatedAt}`;
 }
 
-function populateTeamFilter() {
-  const select = document.getElementById("team-filter");
-  const teams = [...new Set(RAW_DATA.tasks.map((t) => t.team).filter(Boolean))].sort();
-  select.innerHTML = '<option value="">All teams</option>';
+function updateTeamTriggerLabel() {
+  const label = document.getElementById("team-trigger-label");
+  if (!selectedTeams.length) {
+    label.textContent = "All teams";
+  } else if (selectedTeams.length === 1) {
+    label.textContent = selectedTeams[0];
+  } else {
+    label.textContent = `${selectedTeams.length} teams`;
+  }
+}
+
+function populateTeamMultiselect() {
+  const panel = document.getElementById("team-panel");
+  const teams = getTeamsList();
+  panel.innerHTML = "";
+
+  const allLabel = document.createElement("label");
+  allLabel.className = "team-option";
+  const allInput = document.createElement("input");
+  allInput.type = "checkbox";
+  allInput.value = "__all__";
+  allInput.checked = !selectedTeams.length;
+  const allSpan = document.createElement("span");
+  allSpan.textContent = "All teams";
+  allLabel.append(allInput, allSpan);
+  panel.appendChild(allLabel);
+
   teams.forEach((team) => {
-    const opt = document.createElement("option");
-    opt.value = team;
-    opt.textContent = team;
-    select.appendChild(opt);
+    const label = document.createElement("label");
+    label.className = "team-option";
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.value = team;
+    input.checked = selectedTeams.includes(team);
+    const span = document.createElement("span");
+    span.textContent = team;
+    label.append(input, span);
+    panel.appendChild(label);
   });
-  select.value = selectedTeam;
+
+  panel.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+    input.addEventListener("change", onTeamCheckboxChange);
+  });
+  updateTeamTriggerLabel();
+}
+
+function onTeamCheckboxChange(e) {
+  const panel = document.getElementById("team-panel");
+  const allBox = panel.querySelector('input[value="__all__"]');
+  const teamBoxes = [...panel.querySelectorAll('input[type="checkbox"]')].filter(
+    (el) => el.value !== "__all__"
+  );
+
+  if (e.target.value === "__all__" && e.target.checked) {
+    selectedTeams = [];
+    teamBoxes.forEach((b) => {
+      b.checked = false;
+    });
+  } else {
+    allBox.checked = false;
+    selectedTeams = teamBoxes.filter((b) => b.checked).map((b) => b.value);
+    if (!selectedTeams.length) allBox.checked = true;
+  }
+
+  closeDetailPane();
+  updateTeamTriggerLabel();
+  applyTeamFilter();
+}
+
+function bindTeamMultiselect() {
+  const trigger = document.getElementById("team-trigger");
+  const panel = document.getElementById("team-panel");
+
+  trigger.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const open = !panel.hidden;
+    panel.hidden = open;
+    trigger.setAttribute("aria-expanded", String(!open));
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!document.getElementById("team-multiselect").contains(e.target)) {
+      panel.hidden = true;
+      trigger.setAttribute("aria-expanded", "false");
+    }
+  });
 }
 
 function renderAll() {
@@ -399,13 +508,20 @@ function renderAll() {
   renderStatusDonut(DATA.summary);
   renderChart("chart-category", DATA.byCategory, "category", true);
   const teamPanel = document.getElementById("panel-team");
-  if (selectedTeam) {
+  if (selectedTeams.length) {
     teamPanel.hidden = true;
   } else {
     teamPanel.hidden = false;
     renderChart("chart-team", DATA.byTeam, "team", false);
   }
-  renderLateTable(DATA.lateTasks || []);
+
+  const late = DATA.lateTasks || [];
+  document.getElementById("late-count").textContent =
+    late.length > 0 ? `(${late.length})` : "";
+  renderLateTable(late);
+
+  const lateSection = document.getElementById("late-section");
+  lateSection.hidden = false;
 }
 
 function bindKpiButtons() {
@@ -498,7 +614,7 @@ async function refreshFromSharePoint() {
   try {
     RAW_DATA = await fetchDashboardJson();
     lastGeneratedAt = RAW_DATA.meta.generatedAt;
-    populateTeamFilter();
+    populateTeamMultiselect();
     applyTeamFilter();
     showToast("Loaded latest published data…");
 
@@ -510,7 +626,7 @@ async function refreshFromSharePoint() {
       if (updated) {
         RAW_DATA = updated;
         lastGeneratedAt = updated.meta.generatedAt;
-        populateTeamFilter();
+        populateTeamMultiselect();
         applyTeamFilter();
         showToast("SharePoint sync complete — dashboard updated");
       } else {
@@ -533,9 +649,16 @@ async function refreshFromSharePoint() {
 async function loadData() {
   RAW_DATA = await fetchDashboardJson();
   lastGeneratedAt = RAW_DATA.meta.generatedAt;
-  populateTeamFilter();
+  populateTeamMultiselect();
   applyTeamFilter();
   bindKpiButtons();
+
+  if (!hasTaskDetails()) {
+    showToast(
+      "Dashboard data is outdated — push latest build from GitHub (needs tasks in JSON)",
+      true
+    );
+  }
 }
 
 async function init() {
@@ -545,12 +668,7 @@ async function init() {
     loading.style.display = "none";
     document.getElementById("app").hidden = false;
 
-    document.getElementById("team-filter").addEventListener("change", (e) => {
-      selectedTeam = e.target.value;
-      closeDetailPane();
-      applyTeamFilter();
-    });
-
+    bindTeamMultiselect();
     document.getElementById("btn-refresh").addEventListener("click", refreshFromSharePoint);
     document.getElementById("detail-close").addEventListener("click", closeDetailPane);
     document.getElementById("detail-backdrop").addEventListener("click", closeDetailPane);
