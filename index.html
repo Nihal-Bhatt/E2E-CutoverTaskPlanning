@@ -3,95 +3,163 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Cutover Plan</title>
+    <title>Cutover Tracking</title>
     <link rel="stylesheet" href="css/styles.css" />
   </head>
   <body>
     <div id="loading" class="loading">Loading cutover dashboard…</div>
 
-    <div id="app" hidden>
-      <header class="header">
-        <div class="header-text">
-          <h1 id="page-title">Cutover Plan</h1>
-          <p class="subtitle" id="subtitle">Status as of —</p>
-        </div>
-        <img
-          class="logo"
-          src="assets/resmed-logo.png"
-          alt="ResMed"
-          width="140"
-          height="40"
-        />
-      </header>
+    <div id="app" class="app-layout" hidden>
+      <div class="main-column">
+        <header class="header">
+          <div class="header-text">
+            <h1 id="page-title">Cutover Tracking</h1>
+            <p class="subtitle" id="subtitle">—</p>
+            <p class="meta-line">
+              <span id="status-as-of">—</span>
+              ·
+              <a id="sharepoint-link" href="#" target="_blank" rel="noopener"
+                >Open run sheet in SharePoint</a
+              >
+            </p>
+          </div>
+          <img
+            class="logo"
+            src="assets/resmed-logo.png"
+            alt="ResMed"
+            width="140"
+            height="40"
+          />
+        </header>
 
-      <div class="legend-bar" aria-label="Chart legend">
-        <span class="legend-item">
-          <span class="legend-swatch not-started"></span> Not Started
-        </span>
-        <span class="legend-item">
-          <span class="legend-swatch in-progress"></span> In Progress
-        </span>
-        <span class="legend-item">
-          <span class="legend-swatch completed"></span> Completed
-        </span>
-        <span class="legend-item">
-          <span class="legend-delayed">n</span> No. of delayed tasks
-        </span>
+        <div class="legend-bar" aria-label="Chart legend">
+          <span class="legend-item"
+            ><span class="legend-swatch not-started"></span> Not Started</span
+          >
+          <span class="legend-item"
+            ><span class="legend-swatch in-progress"></span> In Progress</span
+          >
+          <span class="legend-item"
+            ><span class="legend-swatch completed"></span> Completed</span
+          >
+          <span class="legend-item"
+            ><span class="legend-delayed">n</span> Delayed count</span
+          >
+          <span class="legend-hint">Click bars or segments for task details →</span>
+        </div>
+
+        <section class="kpi-row" aria-label="Summary KPIs">
+          <button type="button" class="kpi kpi-btn" data-filter="all">
+            <div class="value" id="kpi-total">—</div>
+            <div class="label">Total tasks</div>
+          </button>
+          <button type="button" class="kpi kpi-btn complete" data-filter="status:completed">
+            <div class="value" id="kpi-complete">—</div>
+            <div class="label">Completed %</div>
+          </button>
+          <button type="button" class="kpi kpi-btn" data-filter="status:inProgress">
+            <div class="value" id="kpi-progress">—</div>
+            <div class="label">In progress</div>
+          </button>
+          <button type="button" class="kpi kpi-btn delayed" data-filter="late">
+            <div class="value" id="kpi-delayed">—</div>
+            <div class="label">Delayed</div>
+          </button>
+          <button type="button" class="kpi kpi-btn" data-filter="mand">
+            <div class="value" id="kpi-mand">—</div>
+            <div class="label">Mand for GoLive</div>
+          </button>
+          <button type="button" class="kpi kpi-btn" data-filter="critical">
+            <div class="value" id="kpi-critical">—</div>
+            <div class="label">Critical path</div>
+          </button>
+        </section>
+
+        <section class="status-overview panel">
+          <h2>Status overview</h2>
+          <div class="status-donut-wrap">
+            <div class="status-donut" id="status-donut" aria-hidden="true"></div>
+            <ul class="status-legend-list" id="status-legend-list"></ul>
+          </div>
+        </section>
+
+        <section class="charts-grid">
+          <article class="panel">
+            <h2>Tasks by category</h2>
+            <div id="chart-category" data-dimension="category"></div>
+          </article>
+          <article class="panel">
+            <h2>Tasks by team</h2>
+            <div id="chart-team" data-dimension="team"></div>
+          </article>
+        </section>
+
+        <section class="charts-grid secondary">
+          <article class="panel">
+            <h2>Tasks by cutover phase</h2>
+            <div id="chart-phase" data-dimension="phase"></div>
+          </article>
+          <article class="panel">
+            <h2>Tasks by RAG</h2>
+            <div id="chart-rag" class="rag-list"></div>
+          </article>
+        </section>
+
+        <section class="late-section">
+          <h2>Delayed tasks</h2>
+          <div class="late-table-wrap">
+            <table class="late-table" id="late-table">
+              <thead>
+                <tr>
+                  <th>Task ID</th>
+                  <th>Task name</th>
+                  <th>Category</th>
+                  <th>Team</th>
+                  <th>Status</th>
+                  <th>Assignee</th>
+                  <th>Planned end</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+
+        <footer class="footer">
+          <span id="footer-source">—</span>
+        </footer>
       </div>
 
-      <section class="kpi-row" aria-label="Summary KPIs">
-        <div class="kpi">
-          <div class="value" id="kpi-total">—</div>
-          <div class="label">Total tasks</div>
+      <aside id="detail-pane" class="detail-pane" aria-hidden="true">
+        <div class="detail-pane-inner">
+          <header class="detail-header">
+            <h2 id="detail-title">Tasks</h2>
+            <button type="button" class="detail-close" id="detail-close" aria-label="Close">
+              ×
+            </button>
+          </header>
+          <p class="detail-subtitle" id="detail-subtitle"></p>
+          <div class="detail-table-wrap">
+            <table class="late-table detail-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Task</th>
+                  <th>Status</th>
+                  <th>Team</th>
+                  <th>Assignee</th>
+                  <th>End</th>
+                </tr>
+              </thead>
+              <tbody id="detail-tbody"></tbody>
+            </table>
+          </div>
         </div>
-        <div class="kpi complete">
-          <div class="value" id="kpi-complete">—</div>
-          <div class="label">Completed</div>
-        </div>
-        <div class="kpi">
-          <div class="value" id="kpi-progress">—</div>
-          <div class="label">In progress</div>
-        </div>
-        <div class="kpi delayed">
-          <div class="value" id="kpi-delayed">—</div>
-          <div class="label">Delayed</div>
-        </div>
-      </section>
-
-      <section class="charts-grid">
-        <article class="panel">
-          <h2>Tasks completion by category</h2>
-          <div id="chart-category"></div>
-        </article>
-        <article class="panel">
-          <h2>Tasks completion by teams</h2>
-          <div id="chart-team"></div>
-        </article>
-      </section>
-
-      <section class="late-section">
-        <h2>Delayed tasks</h2>
-        <div class="late-table-wrap">
-          <table class="late-table" id="late-table">
-            <thead>
-              <tr>
-                <th>Task ID</th>
-                <th>Task name</th>
-                <th>Category</th>
-                <th>Team</th>
-                <th>Status</th>
-                <th>Assignee</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </section>
-
-      <footer class="footer">
-        <span id="footer-source">E2E Tech GoLive Cutover</span>
-      </footer>
+      </aside>
+      <div id="detail-backdrop" class="detail-backdrop" hidden></div>
     </div>
+
+    <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
 
     <script src="js/dashboard.js"></script>
   </body>
