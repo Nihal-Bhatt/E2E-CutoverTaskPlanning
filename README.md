@@ -4,6 +4,19 @@ ResMed-branded web dashboard for **Cutover Run Sheet** task tracking. Data is bu
 
 ![Dashboard preview](assets/resmed-logo.png)
 
+## Tabs
+
+| Page | URL |
+|------|-----|
+| **Overview** | `index.html` — KPIs, category/team charts |
+| **Gantt** | `gantt.html` — timeline by category, expand for tasks, red = delayed |
+
+## Live SharePoint refresh (backend)
+
+GitHub Pages cannot call SharePoint directly. For **one-click Refresh** without opening GitHub Actions, deploy the API on **Vercel** and set `apiRefreshUrl` in `js/config.js`.
+
+Full setup: **[docs/SHAREPOINT_BACKEND.md](docs/SHAREPOINT_BACKEND.md)**
+
 ## Quick start (local)
 
 ```bash

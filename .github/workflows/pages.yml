@@ -42,7 +42,7 @@ jobs:
         run: |
           test -f data/dashboard.json
           mkdir -p site
-          cp index.html site/
+          cp index.html gantt.html site/
           cp -r css js assets data site/
 
       - name: Deploy to gh-pages branch
