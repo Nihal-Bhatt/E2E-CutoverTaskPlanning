@@ -4,3 +4,4 @@ __pycache__/
 .DS_Store
 *.xlsx
 .env
+data/_cache/

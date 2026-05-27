@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
-"""Build dashboard.json from Cutover Run Sheet Excel."""
+"""Build dashboard.json from Cutover Run Sheet (SharePoint or local Excel)."""
 from __future__ import annotations
 
 import json
 import os
 import sys
-from collections import OrderedDict
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
 
+SCRIPTS_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPTS_DIR))
+from download_sharepoint import DEFAULT_SHAREPOINT_URL, download_via_graph  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_XLSX = Path.home() / "Downloads" / "Cutover RunSheet_GTS (1).xlsx"
 OUTPUT = ROOT / "data" / "dashboard.json"
+CACHE_XLSX = ROOT / "data" / "_cache" / "Cutover RunSheet_GTS.xlsx"
 SGT = timezone(timedelta(hours=8))
 
 
@@ -25,6 +28,55 @@ def load_tasks(path: Path) -> pd.DataFrame:
     )
     df["is_late"] = df["Late"] == "Y"
     return df
+
+
+def fmt_date(val) -> str:
+    if val is None or (isinstance(val, float) and pd.isna(val)):
+        return ""
+    if pd.isna(val):
+        return ""
+    if hasattr(val, "strftime"):
+        return val.strftime("%Y-%m-%d")
+    return str(val)
+
+
+def task_records(df: pd.DataFrame) -> list[dict]:
+    cols = [
+        "Task Id",
+        "Task Name",
+        "Category",
+        "Team",
+        "Status",
+        "Late",
+        "Assignee",
+        "Cutover Phase",
+        "RAG",
+        "Mand for GoLive",
+        "Critical Path",
+        "Planned End Date",
+        "Planned Start Date",
+    ]
+    rows = []
+    for _, r in df.iterrows():
+        rows.append(
+            {
+                "id": str(r.get("Task Id", "") or ""),
+                "name": str(r.get("Task Name", "") or ""),
+                "category": str(r.get("Category", "") or ""),
+                "team": str(r.get("Team", "") or ""),
+                "status": str(r.get("Status", "") or ""),
+                "statusKey": str(r.get("status_key", "") or ""),
+                "late": bool(r.get("is_late")),
+                "assignee": str(r.get("Assignee", "") or ""),
+                "phase": str(r.get("Cutover Phase", "") or "") or "Unspecified",
+                "rag": str(r.get("RAG", "") or "") or "—",
+                "mandGoLive": str(r.get("Mand for GoLive", "") or ""),
+                "criticalPath": str(r.get("Critical Path", "") or ""),
+                "plannedEnd": fmt_date(r.get("Planned End Date")),
+                "plannedStart": fmt_date(r.get("Planned Start Date")),
+            }
+        )
+    return rows
 
 
 def aggregate_group(df: pd.DataFrame, column: str) -> list[dict]:
@@ -65,7 +117,16 @@ def overall_row(df: pd.DataFrame) -> dict:
     }
 
 
-def build_payload(df: pd.DataFrame, source: str) -> dict:
+def rag_summary(df: pd.DataFrame) -> list[dict]:
+    rows = []
+    for name, g in df.groupby("RAG", dropna=False):
+        label = str(name) if pd.notna(name) and str(name).strip() else "—"
+        rows.append({"name": label, "total": len(g), "delayed": int(g["is_late"].sum())})
+    rows.sort(key=lambda r: r["total"], reverse=True)
+    return rows
+
+
+def build_payload(df: pd.DataFrame, source_label: str) -> dict:
     total = len(df)
     completed = int((df["status_key"] == "completed").sum())
     delayed = int(df["is_late"].sum())
@@ -74,34 +135,38 @@ def build_payload(df: pd.DataFrame, source: str) -> dict:
     hour = int(now_sgt.strftime("%I"))
     status_as_of = f"{hour}:{now_sgt.strftime('%M')}{now_sgt.strftime('%p').lower()} SGT"
 
-    by_category = [overall_row(df)] + aggregate_group(df, "Category")
-    by_team = aggregate_group(df, "Team")
-
-    late_tasks = (
-        df[df["is_late"]][
-            ["Task Id", "Task Name", "Category", "Team", "Status", "Assignee", "Planned End Date"]
-        ]
-        .fillna("")
-        .to_dict(orient="records")
-    )
-    for row in late_tasks:
-        if hasattr(row.get("Planned End Date"), "strftime"):
-            row["Planned End Date"] = row["Planned End Date"].strftime("%Y-%m-%d")
+    tasks = task_records(df)
+    sharepoint_url = os.environ.get("SHAREPOINT_URL", DEFAULT_SHAREPOINT_URL)
 
     return {
         "meta": {
-            "generatedAt": now_sgt.isoformat(),
+            "title": "Cutover Tracking",
+            "subtitle": f"{delayed} tasks are delayed, {pct}% tasks completed",
             "statusAsOf": status_as_of,
-            "source": source,
+            "generatedAt": now_sgt.isoformat(),
+            "source": source_label,
+            "sharepointUrl": sharepoint_url,
             "totalTasks": total,
             "completedTasks": completed,
             "delayedTasks": delayed,
             "pctComplete": pct,
-            "title": f"Cutover Plan | {delayed} tasks are delayed; {pct}% tasks completed",
+            "mandGoLive": int((df["Mand for GoLive"] == "Yes").sum()),
+            "criticalPath": int((df["Critical Path"] == "Yes").sum()),
         },
-        "byCategory": by_category,
-        "byTeam": by_team,
-        "lateTasks": late_tasks,
+        "tasks": tasks,
+        "byCategory": [overall_row(df)] + aggregate_group(df, "Category"),
+        "byTeam": aggregate_group(df, "Team"),
+        "byPhase": aggregate_group(
+            df.assign(
+                phase=df["Cutover Phase"]
+                .fillna("Unspecified")
+                .astype(str)
+                .replace({"": "Unspecified", "nan": "Unspecified"})
+            ),
+            "phase",
+        ),
+        "byRag": rag_summary(df),
+        "lateTasks": [t for t in tasks if t["late"]],
         "summary": {
             "notStarted": int((df["status_key"] == "notStarted").sum()),
             "inProgress": int((df["status_key"] == "inProgress").sum()),
@@ -110,18 +175,40 @@ def build_payload(df: pd.DataFrame, source: str) -> dict:
     }
 
 
+def resolve_excel_path() -> tuple[Path, str]:
+    token = os.environ.get("MS_GRAPH_TOKEN", "").strip()
+    if token:
+        download_via_graph(token, CACHE_XLSX)
+        return CACHE_XLSX, "SharePoint (Microsoft Graph)"
+
+    env_path = os.environ.get("CUTOVER_XLSX", "").strip()
+    if env_path and Path(env_path).exists():
+        return Path(env_path), Path(env_path).name
+
+    if CACHE_XLSX.exists():
+        return CACHE_XLSX, "SharePoint cache"
+
+    raise FileNotFoundError(
+        "No Excel source. Set MS_GRAPH_TOKEN to pull from SharePoint, "
+        "or CUTOVER_XLSX=/path/to/file.xlsx, or run download once to populate data/_cache/"
+    )
+
+
 def main() -> None:
-    xlsx = Path(os.environ.get("CUTOVER_XLSX", DEFAULT_XLSX))
-    if not xlsx.exists():
-        print(f"Excel not found: {xlsx}", file=sys.stderr)
-        print("Set CUTOVER_XLSX=/path/to/file.xlsx", file=sys.stderr)
+    try:
+        xlsx, label = resolve_excel_path()
+    except FileNotFoundError as e:
+        if OUTPUT.exists():
+            print(f"Warning: {e}. Keeping existing {OUTPUT}", file=sys.stderr)
+            return
+        print(e, file=sys.stderr)
         sys.exit(1)
 
     df = load_tasks(xlsx)
-    payload = build_payload(df, str(xlsx.name))
+    payload = build_payload(df, label)
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    print(f"Wrote {OUTPUT} ({payload['meta']['totalTasks']} tasks)")
+    print(f"Wrote {OUTPUT} ({payload['meta']['totalTasks']} tasks) from {label}")
 
 
 if __name__ == "__main__":

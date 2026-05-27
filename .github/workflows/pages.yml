@@ -1,15 +1,17 @@
-# Deploy static dashboard to GitHub Pages (gh-pages branch).
-# After first successful run: Settings → Pages → Deploy from branch → gh-pages → / (root)
-
 name: Build and deploy dashboard
 
 on:
   push:
     branches: [main, master]
   workflow_dispatch:
+  schedule:
+    - cron: "0 */6 * * *"
 
 permissions:
   contents: write
+
+env:
+  SHAREPOINT_URL: https://resmedglobalaus.sharepoint.com/sites/E2EPlanningtransformation/Shared%20Documents/2.%20Phase%201/5.%20Technical%20Solutions%20Capabilities/Cutover/Cutover%20RunSheet_GTS.xlsx
 
 jobs:
   deploy:
@@ -24,16 +26,16 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Build dashboard data
+      - name: Build dashboard from SharePoint or committed data
+        env:
+          MS_GRAPH_TOKEN: ${{ secrets.MS_GRAPH_TOKEN }}
+          SHAREPOINT_URL: ${{ env.SHAREPOINT_URL }}
         run: |
-          if [ -f data/dashboard.json ]; then
-            echo "Using committed data/dashboard.json"
-          else
-            python scripts/build_dashboard.py
-          fi
+          python scripts/build_dashboard.py || echo "Build skipped — using existing data/dashboard.json"
 
       - name: Assemble site
         run: |
+          test -f data/dashboard.json
           mkdir -p site
           cp index.html site/
           cp -r css js assets data site/

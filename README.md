@@ -55,12 +55,31 @@ Refresh data before push:
 git add data/dashboard.json && git commit -m "Update dashboard data"
 ```
 
-## SharePoint
+## SharePoint (source of truth)
 
-The dashboard does not read SharePoint live in the browser. Refresh flow:
+**Run sheet:** [Cutover RunSheet_GTS.xlsx](https://resmedglobalaus.sharepoint.com/sites/E2EPlanningtransformation/Shared%20Documents/2.%20Phase%201/5.%20Technical%20Solutions%20Capabilities/Cutover/Cutover%20RunSheet_GTS.xlsx) — linked in the dashboard header.
 
-1. Update the Excel file on SharePoint.
-2. Download or sync locally → run `build_dashboard.py` → commit `dashboard.json` (or automate via GitHub Actions + Microsoft Graph later).
+The website reads `data/dashboard.json` (not SharePoint directly in the browser). Refresh:
+
+### Option A — Pull from SharePoint (recommended for automation)
+
+1. Register an Azure AD app with **Files.Read.All** (application) or use a delegated token.
+2. Add GitHub secret **`MS_GRAPH_TOKEN`** (valid Graph access token).
+3. Push to `main` — Actions runs `build_dashboard.py` every 6 hours and on each push.
+
+Local:
+
+```bash
+export MS_GRAPH_TOKEN="your-token"
+export SHAREPOINT_URL="https://resmedglobalaus.sharepoint.com/sites/..."
+.venv/bin/python scripts/build_dashboard.py
+```
+
+### Option B — Manual (no Graph token)
+
+1. Download the file from SharePoint.
+2. `CUTOVER_XLSX=/path/to/Cutover RunSheet_GTS.xlsx .venv/bin/python scripts/build_dashboard.py`
+3. `git add data/dashboard.json && git push`
 
 ## Power BI
 
