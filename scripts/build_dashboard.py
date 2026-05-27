@@ -146,6 +146,10 @@ def build_payload(df: pd.DataFrame, source_label: str) -> dict:
             "generatedAt": now_sgt.isoformat(),
             "source": source_label,
             "sharepointUrl": sharepoint_url,
+            "githubRepo": os.environ.get(
+                "GITHUB_REPOSITORY", "Nihal-Bhatt/E2E-CutoverTaskPlanning"
+            ),
+            "workflowFile": "pages.yml",
             "totalTasks": total,
             "completedTasks": completed,
             "delayedTasks": delayed,

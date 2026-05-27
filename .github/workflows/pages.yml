@@ -4,6 +4,11 @@ on:
   push:
     branches: [main, master]
   workflow_dispatch:
+    inputs:
+      refresh_sharepoint:
+        description: "Pull latest Excel from SharePoint (needs MS_GRAPH_TOKEN secret)"
+        type: boolean
+        default: true
   schedule:
     - cron: "0 */6 * * *"
 

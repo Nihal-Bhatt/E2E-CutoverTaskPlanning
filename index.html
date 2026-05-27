@@ -32,6 +32,16 @@
           />
         </header>
 
+        <div class="toolbar">
+          <button type="button" id="btn-refresh" class="btn-refresh">
+            ↻ Refresh from SharePoint
+          </button>
+          <label class="team-filter-label" for="team-filter">Team</label>
+          <select id="team-filter" class="team-filter" aria-label="Filter by team">
+            <option value="">All teams</option>
+          </select>
+        </div>
+
         <div class="legend-bar" aria-label="Chart legend">
           <span class="legend-item"
             ><span class="legend-swatch not-started"></span> Not Started</span
@@ -88,20 +98,9 @@
             <h2>Tasks by category</h2>
             <div id="chart-category" data-dimension="category"></div>
           </article>
-          <article class="panel">
+          <article class="panel" id="panel-team">
             <h2>Tasks by team</h2>
             <div id="chart-team" data-dimension="team"></div>
-          </article>
-        </section>
-
-        <section class="charts-grid secondary">
-          <article class="panel">
-            <h2>Tasks by cutover phase</h2>
-            <div id="chart-phase" data-dimension="phase"></div>
-          </article>
-          <article class="panel">
-            <h2>Tasks by RAG</h2>
-            <div id="chart-rag" class="rag-list"></div>
           </article>
         </section>
 
@@ -161,6 +160,7 @@
 
     <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
 
+    <script src="js/config.js"></script>
     <script src="js/dashboard.js"></script>
   </body>
 </html>
