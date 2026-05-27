@@ -4,19 +4,9 @@ on:
   push:
     branches: [main, master]
   workflow_dispatch:
-    inputs:
-      refresh_sharepoint:
-        description: "Pull latest Excel from SharePoint (needs MS_GRAPH_TOKEN secret)"
-        type: boolean
-        default: true
-  schedule:
-    - cron: "0 */6 * * *"
 
 permissions:
   contents: write
-
-env:
-  SHAREPOINT_URL: https://resmedglobalaus.sharepoint.com/sites/E2EPlanningtransformation/Shared%20Documents/2.%20Phase%201/5.%20Technical%20Solutions%20Capabilities/Cutover/Cutover%20RunSheet_GTS.xlsx
 
 jobs:
   deploy:
@@ -24,25 +14,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Build dashboard from SharePoint or committed data
-        env:
-          MS_GRAPH_TOKEN: ${{ secrets.MS_GRAPH_TOKEN }}
-          SHAREPOINT_URL: ${{ env.SHAREPOINT_URL }}
-        run: |
-          python scripts/build_dashboard.py || echo "Build skipped — using existing data/dashboard.json"
-
       - name: Assemble site
         run: |
           test -f data/dashboard.json
           mkdir -p site
-          cp index.html gantt.html site/
+          cp index.html site/
           cp -r css js assets data site/
 
       - name: Deploy to gh-pages branch

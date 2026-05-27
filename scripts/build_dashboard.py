@@ -10,11 +10,12 @@ from pathlib import Path
 
 import pandas as pd
 
-SCRIPTS_DIR = Path(__file__).resolve().parent
-sys.path.insert(0, str(SCRIPTS_DIR))
-from download_sharepoint import DEFAULT_SHAREPOINT_URL, download_via_graph  # noqa: E402
-
 ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_SHAREPOINT_URL = (
+    "https://resmedglobalaus.sharepoint.com/sites/E2EPlanningtransformation/"
+    "Shared%20Documents/2.%20Phase%201/5.%20Technical%20Solutions%20"
+    "Capabilities/Cutover/Cutover%20RunSheet_GTS.xlsx"
+)
 OUTPUT = ROOT / "data" / "dashboard.json"
 CACHE_XLSX = ROOT / "data" / "_cache" / "Cutover RunSheet_GTS.xlsx"
 SGT = timezone(timedelta(hours=8))
@@ -185,21 +186,20 @@ def build_payload(df: pd.DataFrame, source_label: str) -> dict:
 
 
 def resolve_excel_path() -> tuple[Path, str]:
-    token = os.environ.get("MS_GRAPH_TOKEN", "").strip()
-    if token:
-        download_via_graph(token, CACHE_XLSX)
-        return CACHE_XLSX, "SharePoint (Microsoft Graph)"
-
     env_path = os.environ.get("CUTOVER_XLSX", "").strip()
     if env_path and Path(env_path).exists():
         return Path(env_path), Path(env_path).name
 
+    default = Path.home() / "Downloads" / "Cutover RunSheet_GTS (1).xlsx"
+    if default.exists():
+        return default, default.name
+
     if CACHE_XLSX.exists():
-        return CACHE_XLSX, "SharePoint cache"
+        return CACHE_XLSX, "cached workbook"
 
     raise FileNotFoundError(
-        "No Excel source. Set MS_GRAPH_TOKEN to pull from SharePoint, "
-        "or CUTOVER_XLSX=/path/to/file.xlsx, or run download once to populate data/_cache/"
+        "Excel not found. Set CUTOVER_XLSX=/path/to/Cutover RunSheet_GTS.xlsx "
+        "(download from SharePoint first)."
     )
 
 
