@@ -7,11 +7,6 @@
     <link rel="stylesheet" href="css/styles.css" />
   </head>
   <body>
-    <nav class="main-tabs">
-      <a href="index.html" class="main-tab active" aria-current="page">Overview</a>
-      <a href="gantt.html" class="main-tab">Gantt</a>
-    </nav>
-
     <div id="loading" class="loading">Loading cutover dashboard…</div>
 
     <div id="app" class="app-layout" hidden>
@@ -99,8 +94,8 @@
             type="button"
             id="btn-refresh"
             class="btn-refresh-icon"
-            aria-label="Refresh data from SharePoint"
-            title="Refresh from SharePoint"
+            aria-label="Reload dashboard data"
+            title="Reload latest data"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path
@@ -195,8 +190,6 @@
 
     <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
 
-    <script src="js/config.js"></script>
-    <script src="js/data-loader.js"></script>
     <script src="js/dashboard.js"></script>
   </body>
 </html>

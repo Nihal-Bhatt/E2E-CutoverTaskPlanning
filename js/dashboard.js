@@ -547,33 +547,28 @@ function bindKpiButtons() {
   });
 }
 
-async function refreshFromSharePoint() {
+async function fetchDashboardJson() {
+  const res = await fetch(`data/dashboard.json?t=${Date.now()}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`Could not load data (${res.status})`);
+  return res.json();
+}
+
+async function refreshData() {
   const btn = document.getElementById("btn-refresh");
   btn.disabled = true;
   btn.classList.add("loading");
 
   try {
-    if (hasLiveRefresh()) {
-      showToast("Fetching latest data from SharePoint…");
-    } else {
-      showToast("Reloading published data…");
-    }
-
-    RAW_DATA = await refreshDashboardData();
+    RAW_DATA = await fetchDashboardJson();
     lastGeneratedAt = RAW_DATA.meta.generatedAt;
     populateTeamMultiselect();
     applyTeamFilter();
-
-    if (hasLiveRefresh()) {
-      showToast("Dashboard updated from SharePoint");
-    } else {
-      showToast(
-        "Loaded cached data. For live SharePoint refresh, deploy API on Vercel (see docs/SHAREPOINT_BACKEND.md)"
-      );
-    }
+    showToast("Dashboard reloaded");
   } catch (e) {
     console.error(e);
-    showToast(e.message || "Refresh failed", true);
+    showToast(e.message || "Reload failed", true);
   } finally {
     btn.disabled = false;
     btn.classList.remove("loading");
@@ -581,7 +576,7 @@ async function refreshFromSharePoint() {
 }
 
 async function loadData() {
-  RAW_DATA = await loadDashboardData();
+  RAW_DATA = await fetchDashboardJson();
   lastGeneratedAt = RAW_DATA.meta.generatedAt;
   populateTeamMultiselect();
   applyTeamFilter();
@@ -603,7 +598,7 @@ async function init() {
     document.getElementById("app").hidden = false;
 
     bindTeamMultiselect();
-    document.getElementById("btn-refresh").addEventListener("click", refreshFromSharePoint);
+    document.getElementById("btn-refresh").addEventListener("click", refreshData);
     document.getElementById("detail-close").addEventListener("click", closeDetailPane);
     document.getElementById("detail-backdrop").addEventListener("click", closeDetailPane);
     document.addEventListener("keydown", (e) => {
